@@ -1,0 +1,37 @@
+{
+  "skill_name": "setup-indexing",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Mon agent re-scanne tout le projet à chaque session pour retrouver les fichiers et fonctions. Mets en place un système d'index pour qu'il trouve tout directement, et vérifie que ça marche.",
+      "expected_output": "A working greppable index system in the single repo: generator script installed and valid, index file(s) with dirs/files/symbols incl. tricky elements (extensionless node executable, non-exported TS const), gitignore + CLAUDE.md wired, staleness detection working, validation report saved.",
+      "files": ["fixtures/single"],
+      "assertions": [
+        "index generator script installed at repo root, executable, passes bash -n",
+        "index output generated containing dirs, files and symbols (path:line:definition) sections",
+        "index output directory is gitignored",
+        "CLAUDE.md tells agents to consult the index before scanning",
+        "the extensionless node executable tools/runner contributes its function invoke as a symbol with file:line",
+        "the non-exported TS const internalCache in src/util.ts is locatable via the index",
+        "staleness detection: a check mode reports fresh after generation and stale after an uncommitted edit to a tracked file",
+        "validation evidence present in outputs/report.md (gates/checks actually run, not just claimed)"
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "Ce workspace multi-repo a des membres clonés et gitignorés (api/ en Go, web/ en TypeScript) plus des scripts à la racine. Mets en place un index de code pour que les agents localisent fichiers et symboles dans tous les membres sans scanner, et valide que ça marche.",
+      "expected_output": "Per-member greppable indexes covering root scripts + api (Go) + web (TS), incl. route lines; gitignore + CLAUDE.md wired; staleness detection; validation report saved.",
+      "files": ["fixtures/multi"],
+      "assertions": [
+        "index generator script installed at workspace root, executable, passes bash -n",
+        "every unit is indexed: root scripts, api/ member, web/ member",
+        "Go symbols indexed: func Serve and type Server from api/main.go with file:line",
+        "the HTTP route registration app.get(\"/health\") in web/src/index.ts is locatable via the index",
+        "root shell function deploy_fn in deploy.sh is locatable via the index",
+        "index output gitignored AND CLAUDE.md tells agents to consult the index",
+        "staleness detection: check mode flags an uncommitted edit in a member repo",
+        "validation evidence present in outputs/report.md (gates/checks actually run, not just claimed)"
+      ]
+    }
+  ]
+}
