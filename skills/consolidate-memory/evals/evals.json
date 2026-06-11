@@ -1,0 +1,20 @@
+{
+  "skill_name": "consolidate-memory",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "consolidate learnings from this session. We discovered that the `dev.sh` TUI wrapper should NOT be used for long-running exec targets (app/web/hub/worker) because they need to own the TTY — I kept wrapping them and the user had to correct me twice. Also confirmed that bootstrap.sh must use plain `git clone https://...` not `gh repo clone` to avoid SSH fallback on private org repos.",
+      "expected_output": "Skill checks CLAUDE.md first, skips anything already documented there, writes only genuinely novel feedback memories. MEMORY.md updated."
+    },
+    {
+      "id": 2,
+      "prompt": "save what we learned. Today we found out the Worker repo's `develop` branch is actually abandoned pre-split monorepo content, not the Rust worker lineage that's on `main`. The user told me not to realign it. Also the user said they prefer short, imperative commit subjects under 50 chars with no trailing period.",
+      "expected_output": "Project memory for Worker develop branch status. Feedback memory for commit style preference. Existing memory updated (not duplicated) if entry already exists. MEMORY.md updated."
+    },
+    {
+      "id": 3,
+      "prompt": "/consolidate-memory — this was a short session, I just read a file and answered a question about the bootstrap script. Nothing new was discovered, no corrections were made.",
+      "expected_output": "No memory files written. Claude responds: nothing novel to save this session."
+    }
+  ]
+}
