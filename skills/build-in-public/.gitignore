@@ -1,0 +1,6 @@
+.DS_Store
+node_modules/
+
+# Throwaway repos built by evals/fixtures/setup.sh
+evals/fixtures/normal/
+evals/fixtures/major/
