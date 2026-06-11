@@ -1,0 +1,36 @@
+{
+  "skill_name": "build-in-public",
+  "notes": "Run evals/fixtures/setup.sh once to build the throwaway tagged repos referenced by `files`. Each eval runs in a copy of the fixture repo; the skill must write drafts into build-in-public/<tag>/ without posting anything.",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "I just tagged v1.3.0. Help me build in public — write the launch posts for this release.",
+      "expected_output": "English drafts for a non-major release written to build-in-public/v1.3.0/: an X/Twitter thread and a LinkedIn post, both curated from the v1.2.0..v1.3.0 changelog (cron schedules, next-run time, duplicate-card fix) in plain language. No Product Hunt file (not a major release). Nothing is posted to any platform.",
+      "files": ["fixtures/normal"],
+      "assertions": [
+        "build-in-public/v1.3.0/x-thread.md exists and contains a numbered thread (1/, 2/, ...) with per-tweet character counts",
+        "build-in-public/v1.3.0/linkedin.md exists with a hook first line, ~3 highlight bullets and hashtags",
+        "build-in-public/v1.3.0/producthunt.md is NOT created (v1.3.0 is not a major release)",
+        "the changelog range is v1.2.0..v1.3.0 (previous v* tag auto-detected), not full history",
+        "feat commits surface as user-facing highlights and the chore/docs commits are NOT presented as features",
+        "every draft file opens with a 'DRAFT — review & edit before posting' line",
+        "no command posts to X/LinkedIn/Product Hunt; output is files only"
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "We're launching v2.0.0 — our big release. Draft everything I need to build in public, including a Product Hunt launch.",
+      "expected_output": "English drafts for a MAJOR release written to build-in-public/v2.0.0/: X thread, LinkedIn post, AND a Product Hunt launch kit (tagline <=60 chars, description, maker first comment, topics, gallery shot list, links), curated from the v1.4.0..v2.0.0 changelog (cloud relay, mobile client, perf, auth fix). Nothing is posted.",
+      "files": ["fixtures/major"],
+      "assertions": [
+        "build-in-public/v2.0.0/producthunt.md exists because v2.0.0 is a major (vX.0.0) release",
+        "the Product Hunt kit includes a tagline of at most 60 characters, a description, a maker first comment, suggested topics, and a gallery shot list",
+        "build-in-public/v2.0.0/x-thread.md and linkedin.md also exist",
+        "the changelog range is v1.4.0..v2.0.0 (previous v* tag auto-detected)",
+        "drafts are in English and avoid commit-speak (no raw 'feat(scope): ...' subjects pasted in)",
+        "no competitor-bashing and no unverifiable metrics in the copy",
+        "no command posts to any platform; output is files only"
+      ]
+    }
+  ]
+}
