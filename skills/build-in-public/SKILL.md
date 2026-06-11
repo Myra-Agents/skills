@@ -1,6 +1,6 @@
 ---
 name: build-in-public
-description: Turn a shipped release into review-ready "build in public" drafts — generates an X/Twitter thread, a LinkedIn post, and (for major releases) a Product Hunt launch kit from the repo's changelog, as English drafts you edit before posting. Use when the user wants to announce a release, build in public, write a launch thread or post, draft a Product Hunt launch, or share dev progress publicly after tagging a version.
+description: Turn a shipped release OR a single feature/bug-fix branch into review-ready "build in public" drafts — an X/Twitter thread, a LinkedIn post, and (for major releases) a Product Hunt launch kit, from the repo's changelog, as English drafts you edit before posting. Use when the user wants to announce a release or a feature/fix, build in public, write a launch thread or post, draft a Product Hunt launch, or share dev progress publicly after tagging a version or finishing a branch.
 ---
 
 # Build in Public
@@ -15,13 +15,21 @@ it never posts: you review the files, edit, and publish manually.
 Resolve release → Changelog → Project context → Draft per channel → [you review the files] → Report + checklist
 ```
 
-## 1. Resolve the release
+## 1. Resolve what to announce
 
-- **Tag** — use the tag the user names. If none, list candidates
+- **Scope** — a whole **release** (a tag) or a single **feature/bug-fix
+  branch**. Branch mode makes a focused "just shipped X / just fixed Y" post
+  about one change (present tense, **no Product Hunt**); output goes to
+  `build-in-public/<branch-slug>/`. Pick branch mode when the user names a
+  branch, a feature, or a fix rather than a version.
+- **Tag** (release) — use the tag the user names. If none, list candidates
   (`git tag --sort=-v:refname | head`) and confirm the latest version tag.
+- **Branch** — use the branch the user names (or the current branch). Its base
+  defaults to the repo's default branch; the post covers only the commits the
+  branch adds.
 - **Major?** — a release is *major* when the tag is `vX.0.0` (semver major
   bump) or the user calls it a launch/major. Major releases get the Product
-  Hunt kit; others get X + LinkedIn only.
+  Hunt kit; others (and all branch posts) get X + LinkedIn only.
 - **Series** — a repo may hold several tag series (e.g. `v*` app tags and
   `server-v*` worker tags). Stay within the series of the tag you announce; the
   changelog helper does this automatically.
@@ -31,16 +39,20 @@ Resolve release → Changelog → Project context → Draft per channel → [you
 Run the bundled helper from inside the target repo:
 
 ```bash
-bash <skill-dir>/scripts/changelog.sh <tag>          # auto-detects previous tag
-bash <skill-dir>/scripts/changelog.sh <tag> <prev>   # explicit range
+bash <skill-dir>/scripts/changelog.sh <tag>            # release: auto prev-tag
+bash <skill-dir>/scripts/changelog.sh <tag> <prev>     # release: explicit range
+bash <skill-dir>/scripts/changelog.sh --branch <name>  # branch: vs default base
+bash <skill-dir>/scripts/changelog.sh --branch <name> <base>
 ```
 
 It prints grouped **Features / Fixes / Improvements** (Conventional Commits, PR
 refs preserved) and counts pure maintenance commits instead of listing them.
 Logic + manual fallback for non-conventional histories: `references/changelog.md`.
 
-**Curate — the changelog is raw material, not the post.** Pick the 2–4 changes a
-user actually cares about and say them in plain language, not commit-speak.
+**Curate — the changelog is raw material, not the post.** For a release, pick the
+2–4 changes a user actually cares about. For a **branch**, the post is usually
+**one change** — lead with what it does and why it helps, in plain language, not
+commit-speak.
 
 ## 3. Learn the project's voice
 
