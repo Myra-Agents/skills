@@ -73,14 +73,34 @@ Every file opens with `> DRAFT — review & edit before posting; nothing is
 auto-posted.` Honest copy only: no metrics you can't back, no competitor-
 bashing, claim only what actually shipped.
 
-## 5. Report
+## 5. Attach feature visuals
 
-Tell the user the output directory, list the files written, and give a posting
-checklist: post the X thread · post on LinkedIn · (major) submit to Product Hunt
-· attach screenshots/GIF · double-check every link. Flag anything you had to
-assume so they can fix it before posting.
+Posts with images of the actual features get far more engagement. From the
+`feat` items in the changelog, build a shot list — roughly one image per
+user-facing feature — and put the files in `build-in-public/<tag>/images/`.
 
-## 6. Publish (optional)
+Source them best-effort (**mix — auto when possible**):
+
+- **Auto-capture** when the project can run and the feature has a UI: start the
+  app (its dev/preview command or an existing screenshot script) and capture the
+  screen/state each `feat` touches; name files by feature
+  (e.g. `schedules-cron.png`). Use whatever capture tooling the repo already has
+  (Playwright, a `screenshots`/`shots` script, the preview/browser tools).
+- **Reuse existing assets** for unchanged areas (e.g. a landing `assets/` dir).
+- **Else** write `images/SHOTS.md` — a checklist mapping each feature to the
+  shot to capture — and leave it for the user to fill in.
+
+Reference the chosen images in each draft (so the publish step can pick them up):
+X attaches up to **4**, LinkedIn 1–N, Product Hunt uses them as the gallery.
+
+## 6. Report
+
+Tell the user the output directory, list the files + images written, and give a
+posting checklist: post the X thread · post on LinkedIn · (major) submit to
+Product Hunt · confirm the images attach · double-check every link. Flag anything
+you had to assume so they can fix it before posting.
+
+## 7. Publish (optional)
 
 **The skill's job is the drafts (steps 1–5). Publishing is entirely optional** —
 by default you copy-paste the files yourself. Two opt-in publishers ship for the
@@ -91,8 +111,10 @@ by default you copy-paste the files yourself. Two opt-in publishers ship for the
   ```bash
   LINKEDIN_CLIENT_ID=<id> LINKEDIN_CLIENT_SECRET=<secret> \
     node scripts/linkedin.mjs login                                  # once
-  node scripts/linkedin.mjs post --file build-in-public/<tag>/linkedin.md
+  node scripts/linkedin.mjs post --file build-in-public/<tag>/linkedin.md \
+    --image build-in-public/<tag>/images/feature-a.png --image .../feature-b.png
   ```
+  `--image` (repeatable) uploads the feature screenshots and attaches them.
   Personal profile (free, scope `w_member_social`). Posting as a Company Page
   (`--org <id>`) needs LinkedIn's gated Community Management API (separate app,
   review for production) — see the `--org` notes in the script header.

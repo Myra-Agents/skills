@@ -4,6 +4,7 @@
 //   node scripts/linkedin.mjs login                      # one-time OAuth (local callback)
 //   node scripts/linkedin.mjs exchange --code <code>     # fallback: paste the code by hand
 //   node scripts/linkedin.mjs post --file <linkedin.md>  # post now  [--dry-run]
+//   node scripts/linkedin.mjs post --file <md> --image a.png --image b.png  # attach images
 //   node scripts/linkedin.mjs whoami                     # show the connected member
 //
 //   node scripts/linkedin.mjs login --org               # also request org scopes
@@ -25,9 +26,10 @@
 import http from 'node:http';
 import { readFileSync, writeFileSync, mkdirSync, existsSync, chmodSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { join, basename } from 'node:path';
 
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i >= 0 ? process.argv[i + 1] : d; };
+const argAll = (n) => process.argv.flatMap((v, i) => (v === n && process.argv[i + 1] ? [process.argv[i + 1]] : []));
 const has = (n) => process.argv.includes(n);
 const die = (m) => { console.error(`[linkedin] ${m}`); process.exit(1); };
 const cmd = process.argv[2];
@@ -99,6 +101,30 @@ function extract(md) {
   return md.split('\n').filter((l) => !/^\s*>\s*DRAFT/i.test(l)).join('\n').replace(/^\s*#[^\n]*\n/, '').trim();
 }
 
+// Upload one image and return its asset URN (LinkedIn v2 Assets: register → PUT binary).
+async function uploadImage(t, owner, path) {
+  const reg = await fetch('https://api.linkedin.com/v2/assets?action=registerUpload', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${t.accessToken}`, 'Content-Type': 'application/json', 'X-Restli-Protocol-Version': '2.0.0' },
+    body: JSON.stringify({
+      registerUploadRequest: {
+        recipes: ['urn:li:digitalmediaRecipe:feedshare-image'],
+        owner,
+        serviceRelationships: [{ relationshipType: 'OWNER', identifier: 'urn:li:userGeneratedContent' }],
+      },
+    }),
+  });
+  const j = await reg.json();
+  if (!reg.ok) die(`registerUpload failed (${reg.status}): ${JSON.stringify(j).slice(0, 300)}`);
+  const asset = j.value?.asset;
+  const uploadUrl = j.value?.uploadMechanism?.['com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest']?.uploadUrl;
+  if (!asset || !uploadUrl) die(`registerUpload: no asset/uploadUrl in ${JSON.stringify(j).slice(0, 300)}`);
+  const up = await fetch(uploadUrl, { method: 'PUT', headers: { Authorization: `Bearer ${t.accessToken}` }, body: readFileSync(path) });
+  if (!up.ok) die(`image PUT failed (${up.status}) for ${path}`);
+  console.log(`[linkedin] uploaded ${basename(path)} → ${asset}`);
+  return asset;
+}
+
 async function post() {
   const file = arg('--file') || die('pass --file <path to reviewed linkedin.md>');
   const text = extract(readFileSync(file, 'utf8'));
@@ -107,13 +133,23 @@ async function post() {
   if (Date.now() > t.expiresAt) die('token expired — run: node scripts/linkedin.mjs login');
   const org = arg('--org'); // organization id → post as the Page (needs org scope)
   const author = org ? `urn:li:organization:${org}` : `urn:li:person:${t.sub}`;
+  const dry = has('--dry-run');
+  const imgs = argAll('--image'); // repeatable; feature screenshots
+  // In dry-run we still upload (validates the pipeline) but skip publishing.
+  const media = [];
+  for (const p of imgs) {
+    const asset = await uploadImage(t, author, p);
+    media.push({ status: 'READY', description: { text: basename(p) }, media: asset, title: { text: basename(p) } });
+  }
+  const share = { shareCommentary: { text }, shareMediaCategory: media.length ? 'IMAGE' : 'NONE' };
+  if (media.length) share.media = media;
   const payload = {
     author,
     lifecycleState: 'PUBLISHED',
-    specificContent: { 'com.linkedin.ugc.ShareContent': { shareCommentary: { text }, shareMediaCategory: 'NONE' } },
+    specificContent: { 'com.linkedin.ugc.ShareContent': share },
     visibility: { 'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC' },
   };
-  if (has('--dry-run')) { console.log(JSON.stringify(payload, null, 2)); return; }
+  if (dry) { console.log(JSON.stringify(payload, null, 2)); return; }
   const r = await fetch('https://api.linkedin.com/v2/ugcPosts', {
     method: 'POST',
     headers: { Authorization: `Bearer ${t.accessToken}`, 'Content-Type': 'application/json', 'X-Restli-Protocol-Version': '2.0.0' },
