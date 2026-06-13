@@ -7,7 +7,11 @@
     "types": ["bun-types"],
     "strict": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@ax": ["./scripts/ax.ts"]
+    }
   },
-  "include": ["scripts/**/*.ts", "tests/**/*.ts"]
+  "include": ["scripts/**/*.ts", "apps/**/*.ts"]
 }

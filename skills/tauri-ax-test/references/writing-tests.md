@@ -2,13 +2,23 @@
 
 A repeatable recipe for adding a screen/component to the library.
 
+## 0. Register the app (once)
+
+```bash
+bun scripts/scaffold.ts my-app "My App Window Title" ["Display Name"]
+```
+
+Creates `apps/my-app/{app.config.ts, components/example.test.ts}` and refreshes
+`apps.index.json`. Skip this for an app that's already under `apps/` (e.g. the
+`myra-agents` example).
+
 ## 1. Make the app reachable
 
-The app must be **running**, and `tests/app.config.ts` must hold its exact
-window title:
+The app must be **running**, and `apps/<slug>/app.config.ts` must hold its exact
+window title (the scaffold wrote it; edit if needed):
 
 ```ts
-export const APP = { windowTitle: "Myra Agents", name: "Myra Agents" } as const;
+export const APP = { windowTitle: "My App Window Title", name: "My App" } as const;
 ```
 
 ## 2. Inspect the live AX tree
@@ -28,11 +38,11 @@ Avoid: positions, `nth` indices that depend on data ordering.
 
 ## 3. Write the flow
 
-Create `tests/components/<feature>.test.ts`:
+Create `apps/<slug>/components/<feature>.test.ts`:
 
 ```ts
 import { test, expect, describe } from "bun:test";
-import { app, assertFlowOk } from "../../scripts/ax";
+import { app, assertFlowOk } from "@ax";       // path alias -> scripts/ax.ts
 import { APP } from "../app.config";
 
 describe("<Feature>", () => {
@@ -88,10 +98,12 @@ test.if(!!process.env.DESTRUCTIVE)("persists on Create", async () => { /* ... */
 
 Run those explicitly with `DESTRUCTIVE=1 bun test`.
 
-## 7. Run & commit
+## 7. Index, run & commit
 
 ```bash
-bun test <feature>     # iterate until green
+bun test apps/<slug>   # iterate until green (or `bun test <feature>`)
+bun scripts/index.ts   # refresh apps.index.json
 ```
 
-Commit the new `*.test.ts` — it's now part of the reusable library.
+Commit the new `*.test.ts` **and** the updated `apps.index.json` — the test is
+now part of that app's reusable library.

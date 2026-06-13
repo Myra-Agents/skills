@@ -5,7 +5,7 @@
 // (DESTRUCTIVE=1) because it writes a real schedule + arms a cron.
 
 import { test, expect, describe } from "bun:test";
-import { app, assertFlowOk } from "../../scripts/ax";
+import { app, assertFlowOk } from "@ax";
 import { APP } from "../app.config";
 
 describe("Schedules", () => {

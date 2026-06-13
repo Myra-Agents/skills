@@ -21,8 +21,14 @@ technique the `macos_automator` MCP uses — and accumulate the flows into a
 `bun test` over `osascript`; no MCP needed at run time.
 
 ```
-Inspect AX tree → write a flow (role+name/label anchors) → run → assert on read-back → save to tests/
+Register app → inspect AX tree → write a flow (role+name/label anchors) → run → assert on read-back → save under apps/<app>/
 ```
+
+The harness (`scripts/`) is **generic** — it drives any native macOS app. The
+tests are organized **per app** under `apps/<slug>/`, and `bun scripts/index.ts`
+maintains `apps.index.json`, a greppable registry of every app, its window
+title, and the components it covers. `apps/myra-agents/` ships as a worked
+example; add your own app with `scaffold`.
 
 ## Why AX, not coordinates
 
@@ -58,7 +64,7 @@ Pixel clicks drift (focus/offset). The AX tree is stable and semantic:
   app, or `bun`): System Settings → Privacy & Security → Accessibility. Without
   it, System Events calls hang and the driver returns no output.
 - The **app under test must be running** with the window title set in
-  `tests/app.config.ts`.
+  `apps/<slug>/app.config.ts`.
 - **`macos_automator` MCP — only for *authoring*** (interactive AX tree
   exploration). Not required to *run* tests (the bundled `scripts/inspect.ts`
   dumps the tree standalone). If you want the MCP, install the Myra fork — it
@@ -75,29 +81,40 @@ Pixel clicks drift (focus/offset). The AX tree is stable and semantic:
 
 ## Authoring loop
 
+0. **Register the app** (once per app). Picks a kebab-case slug + the exact
+   window title:
+   ```bash
+   bun scripts/scaffold.ts my-app "My App Window Title" ["Display Name"]
+   ```
+   Creates `apps/my-app/{app.config.ts, components/example.test.ts}` and
+   refreshes the index. (`apps/myra-agents/` already exists as an example.)
 1. **Inspect** the live tree to find stable anchors:
    ```bash
-   bun scripts/inspect.ts "Myra Agents"          # interesting nodes
-   bun scripts/inspect.ts "Myra Agents" --all    # everything + geometry
+   bun scripts/inspect.ts "My App Window Title"        # interesting nodes
+   bun scripts/inspect.ts "My App Window Title" --all  # everything + geometry
    ```
    (Or, with the MCP, dump the tree via `execute_script`.)
 2. **Pick anchors** — prefer `AXRole`+`AXName` for buttons/links, and `label`
    (the field's preceding `AXStaticText`) for inputs. Note labels marked `*`
    (required) start with the label text, so `"Schedule Name"` matches
    `"Schedule Name *"`.
-3. **Write a flow** in `tests/components/<feature>.test.ts` with the `app()`
-   builder (see `tests/components/schedules.test.ts`).
-4. **Run** `bun test` — fix anchors until green. End the flow with a
+3. **Write a flow** in `apps/<slug>/components/<feature>.test.ts` with the
+   `app()` builder (see `apps/myra-agents/components/schedules.test.ts`).
+4. **Run** `bun test apps/<slug>` — fix anchors until green. End the flow with a
    Cancel/Close cleanup step.
-5. **Save** — the test is now part of the reusable library, committed with the
-   skill.
+5. **Index + save** — `bun scripts/index.ts` to refresh `apps.index.json`, then
+   commit both. The test is now part of the reusable, per-app library.
 
 ## Running the library
 
 ```bash
-bun test                 # whole library, non-destructive
-bun test schedules       # one file
-DESTRUCTIVE=1 bun test   # include persisting tests (writes real data)
+bun test                       # every app, non-destructive
+bun test apps/myra-agents      # one app's whole suite
+bun test schedules             # one file (by name fragment)
+DESTRUCTIVE=1 bun test         # include persisting tests (writes real data)
+
+bun scripts/index.ts           # regenerate apps.index.json + print a summary
+bun scripts/index.ts --check   # CI: fail if the index is stale
 ```
 
 AX traversal is slow (seconds per step); the bundled scripts set a 60s test
@@ -106,7 +123,7 @@ timeout. Keep flows focused.
 ## The flow API (`scripts/ax.ts`)
 
 ```ts
-import { app, assertFlowOk } from "../../scripts/ax";
+import { app, assertFlowOk } from "@ax";   // tsconfig path alias -> scripts/ax.ts
 
 const r = await app("Myra Agents")          // resolveWindow by title
   .click("AXLink", "Schedules")             // AXPress by role+name
@@ -132,10 +149,14 @@ among position-deduped matches — for virtualized lists that render twice),
 | Path | Role |
 |------|------|
 | `scripts/ax-driver.js` | JXA core — runs a whole flow in one `osascript` pass, returns a JSON transcript |
-| `scripts/ax.ts` | Typed `Flow` builder; spawns the driver and parses results |
+| `scripts/ax.ts` | Typed `Flow` builder (imported as `@ax`); spawns the driver and parses results |
 | `scripts/inspect.ts` | CLI AX-tree dumper for authoring (`bun scripts/inspect.ts "<title>"`) |
-| `tests/app.config.ts` | The app under test (window title) — retarget the whole suite here |
-| `tests/components/*.test.ts` | The reusable test library (one file per screen/component) |
+| `scripts/scaffold.ts` | Register a new app: `bun scripts/scaffold.ts <slug> "<title>"` |
+| `scripts/index.ts` | (Re)generate `apps.index.json`; `--check` for CI staleness |
+| `apps/_template/` | Scaffold source (`.tmpl`) — copied + substituted per app |
+| `apps/<slug>/app.config.ts` | One app's window title — retarget that app's suite here |
+| `apps/<slug>/components/*.test.ts` | One app's reusable library (one file per screen/component) |
+| `apps.index.json` | Generated registry: every app → window title → components + test names |
 | `references/ax-techniques.md` | AX gotchas cookbook (process resolution, controlled inputs, virtualized lists…) |
 | `references/writing-tests.md` | Step-by-step for adding a new component test |
 

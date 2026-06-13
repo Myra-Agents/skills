@@ -5,7 +5,7 @@
 // rows (add a row assertion against a known seeded run if your fixtures pin one).
 
 import { test, describe } from "bun:test";
-import { app, assertFlowOk } from "../../scripts/ax";
+import { app, assertFlowOk } from "@ax";
 import { APP } from "../app.config";
 
 describe("Logs", () => {

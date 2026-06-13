@@ -4,7 +4,7 @@
 // columns, the filter controls, the task counter). Nothing is mutated.
 
 import { test, describe } from "bun:test";
-import { app, assertFlowOk } from "../../scripts/ax";
+import { app, assertFlowOk } from "@ax";
 import { APP } from "../app.config";
 
 const COLUMNS = ["TO DO", "IN PROGRESS", "WAITING FOR FEEDBACK", "AWAITING REVIEW", "DONE"];

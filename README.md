@@ -14,7 +14,7 @@ OpenCode, Codex, Cursor, and any agent that supports the
 | [`debug`](./skills/debug) | Interactive runtime-evidence debugger for any language — runs a localhost log server, instruments code, reads logs directly, confirms the fix before cleanup. |
 | [`build-in-public`](./skills/build-in-public) | Turns a shipped release into review-ready launch drafts — X/Twitter thread, LinkedIn post, and (major releases) a Product Hunt kit — from the repo's changelog. Optional one-command publish. |
 | [`consolidate-memory`](./skills/consolidate-memory) | Extracts persistent learnings from the current session and writes them to the agent's auto-memory — classifies signals, drafts memory files, updates the index. Triggers on "consolidate" or proactively after a long debugging session. |
-| [`tauri-ax-test`](./skills/tauri-ax-test) | Authors and runs reusable component UI tests for native macOS apps (Tauri/Electron/WKWebView) by driving the accessibility (AX) tree — no pixel clicks. Builds a versioned, CI-able test library under `tests/`. |
+| [`tauri-ax-test`](./skills/tauri-ax-test) | Authors and runs reusable component UI tests for native macOS apps (Tauri/Electron/WKWebView) by driving the accessibility (AX) tree — no pixel clicks. Generic harness + a per-app, indexed test library (`apps/<slug>/` + `apps.index.json`). |
 
 ## Install
 

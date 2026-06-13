@@ -17,6 +17,6 @@
     "Reads state back after each fill and asserts on the returned value.",
     "Ends inspect/fill flows on Cancel/Close; gates persisting tests behind DESTRUCTIVE=1.",
     "Resolves the app by window title, not process name.",
-    "Saves the test under tests/components/ so it joins the reusable library."
+    "Saves the test under apps/<slug>/components/ and refreshes apps.index.json so it joins the per-app library."
   ]
 }

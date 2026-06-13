@@ -5,7 +5,7 @@
 // persist across launches.
 
 import { test, expect, describe } from "bun:test";
-import { app, assertFlowOk } from "../../scripts/ax";
+import { app, assertFlowOk } from "@ax";
 import { APP } from "../app.config";
 
 const TABS = ["Preferences", "Agents", "Local models", "Data"];

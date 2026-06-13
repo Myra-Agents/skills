@@ -7,7 +7,10 @@
   "scripts": {
     "test": "bun test --timeout 60000",
     "test:destructive": "DESTRUCTIVE=1 bun test --timeout 60000",
-    "inspect": "bun scripts/inspect.ts"
+    "inspect": "bun scripts/inspect.ts",
+    "scaffold": "bun scripts/scaffold.ts",
+    "index": "bun scripts/index.ts",
+    "index:check": "bun scripts/index.ts --check"
   },
   "engines": {
     "bun": ">=1.0.0"
