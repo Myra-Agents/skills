@@ -1,5 +1,5 @@
 ---
-name: tauri-ax-test
+name: native-macos-test
 description: >
   Author and run reusable component UI tests for a NATIVE macOS app (Tauri,
   Electron, or any WKWebView/AppKit app) by driving the macOS accessibility (AX)
@@ -15,7 +15,7 @@ description: >
   Pixel-coordinate clicking is banned — everything targets stable AX anchors.
 ---
 
-# tauri-ax-test — AX-driven component tests for native macOS apps
+# native-macos-test — AX-driven component tests for native macOS apps
 
 Drive a running native app through its **accessibility (AX) tree** (the
 `macos_automator` technique) and accumulate the flows into a **reusable,
@@ -31,12 +31,12 @@ Locate/init the AX home → inspect AX tree → write a flow → run → assert 
 
 ## 0. Locate (or initialize) the AX test home
 
-The harness is **vendored into the app repo** and marked by a `.tauri-ax.json`
+The harness is **vendored into the app repo** and marked by a `.native-macos.json`
 file. On every invocation, first find it:
 
 ```bash
 REPO=$(git rev-parse --show-toplevel)
-HOME_DIR=$(find "$REPO" -name .tauri-ax.json -not -path '*/node_modules/*' -print -quit)
+HOME_DIR=$(find "$REPO" -name .native-macos.json -not -path '*/node_modules/*' -print -quit)
 HOME_DIR=${HOME_DIR:+$(dirname "$HOME_DIR")}
 echo "AX home: ${HOME_DIR:-<not initialized>}"
 ```
@@ -50,7 +50,7 @@ echo "AX home: ${HOME_DIR:-<not initialized>}"
 1. **Find this skill's bundled harness** (the vendor payload):
    ```bash
    HARNESS=$(find "$HOME" "$REPO/.claude" /root/.claude ~/.claude -type d \
-     -path '*/tauri-ax-test/harness' -not -path '*/node_modules/*' -print -quit 2>/dev/null)
+     -path '*/native-macos-test/harness' -not -path '*/node_modules/*' -print -quit 2>/dev/null)
    echo "harness source: $HARNESS"
    ```
    (It sits next to this SKILL.md, in `harness/`.)
@@ -58,7 +58,7 @@ echo "AX home: ${HOME_DIR:-<not initialized>}"
    ```bash
    mkdir -p "$REPO/tests/native"
    cp -R "$HARNESS"/. "$REPO/tests/native/"
-   test -f "$REPO/tests/native/.tauri-ax.json" && echo "vendored OK"
+   test -f "$REPO/tests/native/.native-macos.json" && echo "vendored OK"
    ```
 3. **Register the app** (asks you nothing if you already know the window title;
    otherwise determine it — see step 1):
@@ -68,7 +68,7 @@ echo "AX home: ${HOME_DIR:-<not initialized>}"
    ```
 4. **Record the home** so humans and future agents see it: add a one-line pointer
    to the app repo's `CLAUDE.md` (e.g. *"Native AX UI tests live in
-   `tests/native/` — driven by the `tauri-ax-test` skill"*). The `.tauri-ax.json`
+   `tests/native/` — driven by the `native-macos-test` skill"*). The `.native-macos.json`
    marker is the machine anchor; this is the human one.
 
 ## 1. Identify the app (window title)
@@ -190,7 +190,7 @@ bun scripts/index.ts --check   # CI: fail if stale
 | `harness/scripts/ax.ts` | Typed `Flow` builder (imported as `@ax`) |
 | `harness/scripts/inspect.ts` · `scaffold.ts` · `index.ts` | author / register / index |
 | `harness/apps/_template/` | scaffold source (`.tmpl`) |
-| `harness/.tauri-ax.json` | discovery marker that travels with the vendored home |
+| `harness/.native-macos.json` | discovery marker that travels with the vendored home |
 | `references/ax-techniques.md` | AX gotchas cookbook |
 | `references/writing-tests.md` | step-by-step for adding a new component test |
 

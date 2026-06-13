@@ -1,5 +1,5 @@
 {
-  "skill": "tauri-ax-test",
+  "skill": "native-macos-test",
   "description": "Triggering + behavior evals for the AX-driven native-app UI testing skill.",
   "triggers": [
     { "prompt": "Write a UI test for the desktop app's Schedules screen", "should_trigger": true },
@@ -13,7 +13,7 @@
   ],
   "behaviors": [
     "The agent runs every bun/osascript command itself and reports results — never hands the user a command to run.",
-    "Locates the vendored AX home by its .tauri-ax.json marker; initializes it (vendor harness into tests/native/ + scaffold) only when absent.",
+    "Locates the vendored AX home by its .native-macos.json marker; initializes it (vendor harness into tests/native/ + scaffold) only when absent.",
     "Never uses pixel coordinates — every element targeted by AXRole + name/label.",
     "Builds one flow per scenario (single osascript pass); does not split a modal flow across calls.",
     "Reads state back after each fill and asserts on the returned value.",

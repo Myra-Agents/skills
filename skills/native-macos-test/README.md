@@ -1,4 +1,4 @@
-# tauri-ax-test
+# native-macos-test
 
 Author and run **reusable component UI tests for native macOS apps** (Tauri,
 Electron, any WKWebView/AppKit app) by driving the **accessibility (AX) tree** —
@@ -19,13 +19,13 @@ React-controlled inputs update.
 ## Where the tests live
 
 The harness is **vendored into the app's own repo** (default `tests/native/`),
-marked by a `.tauri-ax.json` file. So the test library is **versioned with the
+marked by a `.native-macos.json` file. So the test library is **versioned with the
 app**, self-contained, and **self-locating** — on the next session the skill
 finds the home by its marker, no external config needed.
 
 ```
 <app-repo>/tests/native/        # the AX test home (vendored)
-  .tauri-ax.json                # discovery marker
+  .native-macos.json                # discovery marker
   scripts/                      # generic harness (driver, ax.ts, inspect, scaffold, index)
   apps/<slug>/
     app.config.ts               # window title
@@ -47,7 +47,7 @@ those live in each app's repo.
 ## Install
 
 ```bash
-npx skills add https://github.com/Myra-Agents/skills --skill tauri-ax-test
+npx skills add https://github.com/Myra-Agents/skills --skill native-macos-test
 ```
 
 Then just ask: *"test the desktop app's Schedules screen"* — the skill locates or
