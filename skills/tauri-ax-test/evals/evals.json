@@ -1,0 +1,22 @@
+{
+  "skill": "tauri-ax-test",
+  "description": "Triggering + behavior evals for the AX-driven native-app UI testing skill.",
+  "triggers": [
+    { "prompt": "Write a UI test for the desktop app's Schedules screen", "should_trigger": true },
+    { "prompt": "Add an AX test that opens the New Schedule modal and checks the fields", "should_trigger": true },
+    { "prompt": "Automate clicking through the Tauri app to test the sidebar", "should_trigger": true },
+    { "prompt": "Add this flow to the app's test library", "should_trigger": true },
+    { "prompt": "Regression test the macOS app UI before release", "should_trigger": true },
+    { "prompt": "Write a unit test for the parseConfig() function", "should_trigger": false },
+    { "prompt": "Add a Playwright test for the marketing website", "should_trigger": false },
+    { "prompt": "Test the REST endpoint returns 200", "should_trigger": false }
+  ],
+  "behaviors": [
+    "Never uses pixel coordinates — every element targeted by AXRole + name/label.",
+    "Builds one flow per scenario (single osascript pass); does not split a modal flow across calls.",
+    "Reads state back after each fill and asserts on the returned value.",
+    "Ends inspect/fill flows on Cancel/Close; gates persisting tests behind DESTRUCTIVE=1.",
+    "Resolves the app by window title, not process name.",
+    "Saves the test under tests/components/ so it joins the reusable library."
+  ]
+}
