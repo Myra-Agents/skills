@@ -4,7 +4,9 @@ description: >
   Author and run reusable component UI tests for a NATIVE macOS app (Tauri,
   Electron, or any WKWebView/AppKit app) by driving the macOS accessibility (AX)
   tree — match elements by AXRole + name/label, act with AXPress, type with real
-  key events. Builds up a versioned, CI-able test library under the skill.
+  key events. YOU (the agent) run everything; the user just converses. The
+  harness is vendored into the app repo (default tests/native/) so the test
+  library is versioned WITH the app and self-locating across sessions.
   USE THIS when asked to: "test the desktop/Tauri app", "write a UI test for the
   native app", "add an AX/accessibility test", "automate clicking through the
   app", "add this flow to the test library", "component test for the macOS app",
@@ -15,157 +17,188 @@ description: >
 
 # tauri-ax-test — AX-driven component tests for native macOS apps
 
-Drive a running native app through its **accessibility (AX) tree** — the same
-technique the `macos_automator` MCP uses — and accumulate the flows into a
-**reusable, versioned test library** (`tests/`). Tests run headless-ish via
-`bun test` over `osascript`; no MCP needed at run time.
+Drive a running native app through its **accessibility (AX) tree** (the
+`macos_automator` technique) and accumulate the flows into a **reusable,
+versioned test library that lives in the app's own repo**.
+
+**You run everything.** The user invokes this skill and converses; you execute
+all `bun`/`osascript` work via Bash and report results + proof. Never hand the
+user a command to run — run it yourself.
 
 ```
-Register app → inspect AX tree → write a flow (role+name/label anchors) → run → assert on read-back → save under apps/<app>/
+Locate/init the AX home → inspect AX tree → write a flow → run → assert on read-back → index
 ```
 
-The harness (`scripts/`) is **generic** — it drives any native macOS app. The
-tests are organized **per app** under `apps/<slug>/`, and `bun scripts/index.ts`
-maintains `apps.index.json`, a greppable registry of every app, its window
-title, and the components it covers. `apps/myra-agents/` ships as a worked
-example; add your own app with `scaffold`.
+## 0. Locate (or initialize) the AX test home
 
-## Why AX, not coordinates
+The harness is **vendored into the app repo** and marked by a `.tauri-ax.json`
+file. On every invocation, first find it:
 
-Pixel clicks drift (focus/offset). The AX tree is stable and semantic:
+```bash
+REPO=$(git rev-parse --show-toplevel)
+HOME_DIR=$(find "$REPO" -name .tauri-ax.json -not -path '*/node_modules/*' -print -quit)
+HOME_DIR=${HOME_DIR:+$(dirname "$HOME_DIR")}
+echo "AX home: ${HOME_DIR:-<not initialized>}"
+```
 
-- **Target by `AXRole` + `AXName`/`AXDescription`/value or by label** — never
-  pixel offsets.
-- **Tauri/Electron/WKWebView apps are usually fully exposed in AX** — links,
-  buttons, fields all appear. Try AX first.
-- **Read state back after every action** — no blind typing; assertions compare
-  the value the app actually holds.
+- **Found** → that directory is the home; `cd` there for all commands below.
+- **Not found** → initialize it (next step). Default location `tests/native/`,
+  unless the user names another.
+
+### Initialize (first time only)
+
+1. **Find this skill's bundled harness** (the vendor payload):
+   ```bash
+   HARNESS=$(find "$HOME" "$REPO/.claude" /root/.claude ~/.claude -type d \
+     -path '*/tauri-ax-test/harness' -not -path '*/node_modules/*' -print -quit 2>/dev/null)
+   echo "harness source: $HARNESS"
+   ```
+   (It sits next to this SKILL.md, in `harness/`.)
+2. **Vendor it** into the app repo and confirm the marker travels:
+   ```bash
+   mkdir -p "$REPO/tests/native"
+   cp -R "$HARNESS"/. "$REPO/tests/native/"
+   test -f "$REPO/tests/native/.tauri-ax.json" && echo "vendored OK"
+   ```
+3. **Register the app** (asks you nothing if you already know the window title;
+   otherwise determine it — see step 1):
+   ```bash
+   cd "$REPO/tests/native"
+   bun scripts/scaffold.ts <slug> "<Window Title>" ["Display Name"]
+   ```
+4. **Record the home** so humans and future agents see it: add a one-line pointer
+   to the app repo's `CLAUDE.md` (e.g. *"Native AX UI tests live in
+   `tests/native/` — driven by the `tauri-ax-test` skill"*). The `.tauri-ax.json`
+   marker is the machine anchor; this is the human one.
+
+## 1. Identify the app (window title)
+
+The driver finds the app by **exact window title** (robust — a dev build's AX
+process name often differs from the display name). To discover it from the
+running app:
+
+```bash
+osascript -l JavaScript -e 'Application("System Events").processes.whose({backgroundOnly:false})().flatMap(p=>{try{return p.windows().map(w=>w.name())}catch(e){return[]}}).filter(Boolean).join("\n")'
+```
+
+Pick the title, set it in `apps/<slug>/app.config.ts` (scaffold writes it). If
+ambiguous, ask the user which window.
+
+## 2. Inspect the live AX tree (authoring)
+
+```bash
+cd "$HOME_DIR"
+bun scripts/inspect.ts "<Window Title>"        # interesting nodes
+bun scripts/inspect.ts "<Window Title>" --all  # everything + geometry
+```
+
+(Or, if the `macos_automator` MCP is connected, dump the tree via
+`execute_script` — same data.) Pick **stable anchors**: `AXRole`+`AXName` for
+buttons/links/tabs, and the input's **preceding label** for fields. Labels marked
+`*` (required) start with the label text, so `"Schedule Name"` matches
+`"Schedule Name *"`.
+
+## 3. Write the flow
+
+Create `apps/<slug>/components/<feature>.test.ts` with the `app()` builder:
+
+```ts
+import { test, expect, describe } from "bun:test";
+import { app, assertFlowOk } from "@ax";   // tsconfig path alias -> scripts/ax.ts
+import { APP } from "../app.config";
+
+describe("Schedules", () => {
+  test("New Schedule modal accepts input", async () => {
+    const r = await app(APP.windowTitle)
+      .click("AXLink", "Schedules")
+      .waitFor("AXHeading", "Schedules")
+      .click("AXButton", "New Schedule")
+      .waitFor("AXHeading", "New Schedule")
+      .fillByLabel("Schedule Name", "AXTextField", "My test")  // focus + keystroke
+      .readByLabel("Schedule Name", "AXTextField", "name")     // value -> reads.name
+      .assertExists({ role: "AXButton", name: "Create" })
+      .click("AXButton", "Cancel")          // non-destructive cleanup
+      .run();
+    assertFlowOk(r);
+    expect(r.reads.name).toBe("My test");
+  });
+});
+```
+
+Selector fields: `role` (required), `name`, `desc`, `valuePrefix`, `nth` (index
+among position-deduped matches — virtualized lists render twice), `settle`.
+
+## 4. Run and report
+
+```bash
+cd "$HOME_DIR"
+bun test                       # every app, non-destructive
+bun test apps/<slug>           # one app's suite
+bun test <feature>             # one file by name fragment
+DESTRUCTIVE=1 bun test         # include persisting tests (writes real data)
+```
+
+Iterate on anchors until green, then **regenerate the index and report** to the
+user (pass/fail counts + what's covered):
+
+```bash
+bun scripts/index.ts           # refresh apps.index.json
+bun scripts/index.ts --check   # CI: fail if stale
+```
 
 ## Hard rules
 
-1. **No pixel coordinates.** Match by role + name/label. If an element has no
-   stable name, prefer `label` (field-after-its-label) over `nth`.
-2. **One scenario = one flow = one `osascript` pass.** Modals/menus re-render or
+1. **You run it, not the user.** Execute every command via Bash; report results.
+2. **No pixel coordinates.** Match by role + name/label. No stable name ⇒ prefer
+   `label` (field-after-its-label) over `nth`.
+3. **One scenario = one flow = one `osascript` pass.** Modals/menus re-render or
    close between separate invocations, so open → fill → read → assert → cleanup
-   must all be in a single `Flow.run()`. The driver enforces this.
-3. **Read back, don't assume.** Every fill is followed by a read; assert on the
+   must all be in a single `Flow.run()`.
+4. **Read back, don't assume.** Every fill is followed by a read; assert on the
    returned value.
-4. **Non-destructive by default.** A test that only inspects/fills must end by
-   pressing **Cancel/Close** so nothing persists. Any test that persists
-   (Create/Send/Delete) is gated behind `DESTRUCTIVE=1` and `test.if(...)`.
-5. **React/controlled inputs need real keys.** The driver focuses the field then
-   `keystroke`s — setting `AXValue` alone won't fire `onChange`. (Already handled
-   by `fill`/`fillByLabel`.)
+5. **Non-destructive by default.** Inspect/fill flows end on **Cancel/Close**.
+   Anything that persists (Create/Send/Delete) is gated behind `DESTRUCTIVE=1`
+   and `test.if(!!process.env.DESTRUCTIVE)`, and you confirm with the user before
+   running it.
+6. **React/controlled inputs need real keys** — handled by `fill`/`fillByLabel`
+   (focus + `keystroke`); setting `AXValue` alone won't fire `onChange`.
 
 ## Prerequisites
 
-- **macOS** + **Bun** (`bun --version`). `osascript` is built in.
-- **Accessibility permission** for whatever launches the tests (your terminal
-  app, or `bun`): System Settings → Privacy & Security → Accessibility. Without
-  it, System Events calls hang and the driver returns no output.
-- The **app under test must be running** with the window title set in
-  `apps/<slug>/app.config.ts`.
-- **`macos_automator` MCP — only for *authoring*** (interactive AX tree
-  exploration). Not required to *run* tests (the bundled `scripts/inspect.ts`
-  dumps the tree standalone). If you want the MCP, install the Myra fork — it
-  needs Node ≥24, so pin a Homebrew node by absolute path (Claude Code's runtime
-  is Node 18 and would crash the server):
-
+- **macOS** + **Bun**; `osascript` is built in.
+- **Accessibility permission** for whatever launches the tests (your terminal or
+  `bun`): System Settings → Privacy & Security → Accessibility. Without it,
+  System Events calls hang and the driver returns no output.
+- The **app under test must be running**.
+- **`macos_automator` MCP — optional, authoring only** (interactive AX
+  exploration). Not needed to run tests (`scripts/inspect.ts` covers it). To
+  install the Myra fork (needs Node ≥24 — pin a Homebrew node so Claude Code's
+  Node 18 runtime doesn't crash it):
   ```bash
   claude mcp add macos-automator -- /opt/homebrew/opt/node@26/bin/node \
     /opt/homebrew/lib/node_modules/npm/bin/npx-cli.js -y \
     --package @steipete/macos-automator-mcp macos-automator-mcp
   ```
+  Tools surface only after a Claude Code **session restart**.
 
-  MCP tools surface only after a Claude Code **session restart**.
-
-## Authoring loop
-
-0. **Register the app** (once per app). Picks a kebab-case slug + the exact
-   window title:
-   ```bash
-   bun scripts/scaffold.ts my-app "My App Window Title" ["Display Name"]
-   ```
-   Creates `apps/my-app/{app.config.ts, components/example.test.ts}` and
-   refreshes the index. (`apps/myra-agents/` already exists as an example.)
-1. **Inspect** the live tree to find stable anchors:
-   ```bash
-   bun scripts/inspect.ts "My App Window Title"        # interesting nodes
-   bun scripts/inspect.ts "My App Window Title" --all  # everything + geometry
-   ```
-   (Or, with the MCP, dump the tree via `execute_script`.)
-2. **Pick anchors** — prefer `AXRole`+`AXName` for buttons/links, and `label`
-   (the field's preceding `AXStaticText`) for inputs. Note labels marked `*`
-   (required) start with the label text, so `"Schedule Name"` matches
-   `"Schedule Name *"`.
-3. **Write a flow** in `apps/<slug>/components/<feature>.test.ts` with the
-   `app()` builder (see `apps/myra-agents/components/schedules.test.ts`).
-4. **Run** `bun test apps/<slug>` — fix anchors until green. End the flow with a
-   Cancel/Close cleanup step.
-5. **Index + save** — `bun scripts/index.ts` to refresh `apps.index.json`, then
-   commit both. The test is now part of the reusable, per-app library.
-
-## Running the library
-
-```bash
-bun test                       # every app, non-destructive
-bun test apps/myra-agents      # one app's whole suite
-bun test schedules             # one file (by name fragment)
-DESTRUCTIVE=1 bun test         # include persisting tests (writes real data)
-
-bun scripts/index.ts           # regenerate apps.index.json + print a summary
-bun scripts/index.ts --check   # CI: fail if the index is stale
-```
-
-AX traversal is slow (seconds per step); the bundled scripts set a 60s test
-timeout. Keep flows focused.
-
-## The flow API (`scripts/ax.ts`)
-
-```ts
-import { app, assertFlowOk } from "@ax";   // tsconfig path alias -> scripts/ax.ts
-
-const r = await app("Myra Agents")          // resolveWindow by title
-  .click("AXLink", "Schedules")             // AXPress by role+name
-  .waitFor("AXHeading", "Schedules")        // poll until present
-  .click("AXButton", "New Schedule")
-  .waitFor("AXHeading", "New Schedule")
-  .fillByLabel("Schedule Name", "AXTextField", "My test")  // focus + keystroke
-  .readByLabel("Schedule Name", "AXTextField", "name")     // value -> reads.name
-  .assertExists({ role: "AXButton", name: "Create" })
-  .click("AXButton", "Cancel")              // non-destructive cleanup
-  .run();
-
-assertFlowOk(r);                            // throws a readable transcript on failure
-expect(r.reads.name).toBe("My test");
-```
-
-Selector fields: `role` (required), `name`, `desc`, `valuePrefix`, `nth` (index
-among position-deduped matches — for virtualized lists that render twice),
-`settle` (seconds to wait after the action).
-
-## Files
+## Files (in this skill)
 
 | Path | Role |
 |------|------|
-| `scripts/ax-driver.js` | JXA core — runs a whole flow in one `osascript` pass, returns a JSON transcript |
-| `scripts/ax.ts` | Typed `Flow` builder (imported as `@ax`); spawns the driver and parses results |
-| `scripts/inspect.ts` | CLI AX-tree dumper for authoring (`bun scripts/inspect.ts "<title>"`) |
-| `scripts/scaffold.ts` | Register a new app: `bun scripts/scaffold.ts <slug> "<title>"` |
-| `scripts/index.ts` | (Re)generate `apps.index.json`; `--check` for CI staleness |
-| `apps/_template/` | Scaffold source (`.tmpl`) — copied + substituted per app |
-| `apps/<slug>/app.config.ts` | One app's window title — retarget that app's suite here |
-| `apps/<slug>/components/*.test.ts` | One app's reusable library (one file per screen/component) |
-| `apps.index.json` | Generated registry: every app → window title → components + test names |
-| `references/ax-techniques.md` | AX gotchas cookbook (process resolution, controlled inputs, virtualized lists…) |
-| `references/writing-tests.md` | Step-by-step for adding a new component test |
+| `harness/` | The vendor payload — copied into the app repo's AX home |
+| `harness/scripts/ax-driver.js` | JXA core — runs a whole flow in one `osascript` pass, returns a JSON transcript |
+| `harness/scripts/ax.ts` | Typed `Flow` builder (imported as `@ax`) |
+| `harness/scripts/inspect.ts` · `scaffold.ts` · `index.ts` | author / register / index |
+| `harness/apps/_template/` | scaffold source (`.tmpl`) |
+| `harness/.tauri-ax.json` | discovery marker that travels with the vendored home |
+| `references/ax-techniques.md` | AX gotchas cookbook |
+| `references/writing-tests.md` | step-by-step for adding a new component test |
 
-## Gotchas (these bit during authoring — see `references/ax-techniques.md`)
+## Gotchas (see `references/ax-techniques.md`)
 
-- **Dev build's AX process name ≠ display name** (Myra Agents dev = process
-  `app`, window `Myra Agents`) → resolve by **window title**, not process name.
+- **Dev build's AX process name ≠ display name** → resolve by **window title**.
 - **Modal closes/re-renders between osascript calls** → one flow per pass.
-- **Virtualized lists render the AX tree twice** → the driver position-dedups;
-  use `nth` on the deduped set.
+- **Virtualized lists render the AX tree twice** → driver position-dedups; use `nth`.
 - **`AXValue` set alone won't update React** → `fill` uses focus + `keystroke`.
-- **First AX call is slow** (TCC handshake + tree size) → expect seconds/step.
+- **First AX call is slow** (TCC handshake + tree size) → budget seconds/step; the
+  bundled scripts set a 60s test timeout.

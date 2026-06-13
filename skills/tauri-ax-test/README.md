@@ -7,38 +7,42 @@ MCP uses. A skill for Claude Code (and any agent that supports skills — OpenCo
 Codex, Cursor).
 
 ```
-Register app → inspect AX tree → write a flow → run → assert on read-back → save under apps/<app>/
+Locate/init the AX home → inspect AX tree → write a flow → run → assert on read-back → index
 ```
 
-No pixel clicking. Every element is targeted by `AXRole` + name/label, acted on
-with `AXPress`, and typed into with real key events so React-controlled inputs
-update. The harness is **generic** (drives any native macOS app); tests are
-organized **per app** under `apps/<slug>/`, with `apps.index.json` indexing what
-each app covers. `apps/myra-agents/` ships as a worked example.
+**The agent runs everything.** You just invoke the skill and converse — Claude
+inspects the live app, writes the flow, runs `bun test`, and reports results. No
+commands for you to type. No pixel clicking: elements are matched by `AXRole` +
+name/label, acted on with `AXPress`, typed into with real key events so
+React-controlled inputs update.
 
-## How it works
+## Where the tests live
 
-1. **Register** the app once — `bun scripts/scaffold.ts <slug> "<window title>"`
-   creates `apps/<slug>/` and refreshes the index.
-2. **Inspect** the live AX tree (`bun scripts/inspect.ts "<window title>"`, or
-   the `macos_automator` MCP) to find stable anchors.
-3. **Write a flow** with the typed `app()` builder — each scenario is a single
-   `osascript` pass (modals re-render between calls, so flows can't be split).
-4. **Run** `bun test apps/<slug>`; the driver returns a JSON transcript and the
-   test asserts on values read back from the app.
-5. **Index + save** — `bun scripts/index.ts`, then commit. The `*.test.ts` is now
-   part of that app's reusable library.
+The harness is **vendored into the app's own repo** (default `tests/native/`),
+marked by a `.tauri-ax.json` file. So the test library is **versioned with the
+app**, self-contained, and **self-locating** — on the next session the skill
+finds the home by its marker, no external config needed.
 
-Non-destructive by default: inspect/fill flows end on Cancel/Close; tests that
-persist data are gated behind `DESTRUCTIVE=1`.
+```
+<app-repo>/tests/native/        # the AX test home (vendored)
+  .tauri-ax.json                # discovery marker
+  scripts/                      # generic harness (driver, ax.ts, inspect, scaffold, index)
+  apps/<slug>/
+    app.config.ts               # window title
+    components/*.test.ts         # this app's reusable test library
+  apps.index.json               # generated: app -> window title -> components + tests
+```
+
+This repo (the skill) ships the **generic** harness under `harness/` plus the
+agent instructions in [SKILL.md](./SKILL.md). It contains no app-specific tests —
+those live in each app's repo.
 
 ## Requirements
 
 - macOS + [Bun](https://bun.sh) (`osascript` is built in)
 - Accessibility permission for the launching terminal / `bun`
-- The app under test running, with its window title set in `apps/<slug>/app.config.ts`
-- *(authoring only)* the `macos_automator` MCP — see [SKILL.md](./SKILL.md) for the
-  Node-24 install note
+- The app under test running
+- *(optional, authoring)* the `macos_automator` MCP — see [SKILL.md](./SKILL.md)
 
 ## Install
 
@@ -46,20 +50,14 @@ persist data are gated behind `DESTRUCTIVE=1`.
 npx skills add https://github.com/Myra-Agents/skills --skill tauri-ax-test
 ```
 
-## Use
+Then just ask: *"test the desktop app's Schedules screen"* — the skill locates or
+initializes the AX home in your app repo and takes it from there.
 
-```bash
-bun scripts/scaffold.ts my-app "My App"   # register a new app
-bun scripts/inspect.ts "My App"            # dump the AX tree while authoring
-bun test                                   # every app (non-destructive)
-bun test apps/myra-agents                  # one app's suite
-DESTRUCTIVE=1 bun test                     # include tests that persist data
-bun scripts/index.ts                       # refresh apps.index.json
-```
+## Reference
 
-See [SKILL.md](./SKILL.md) for the full workflow, [references/ax-techniques.md](./references/ax-techniques.md)
-for AX gotchas, and [references/writing-tests.md](./references/writing-tests.md)
-for the new-test recipe.
+- [SKILL.md](./SKILL.md) — the agent workflow (locate/init, author, run, index)
+- [references/ax-techniques.md](./references/ax-techniques.md) — AX gotchas cookbook
+- [references/writing-tests.md](./references/writing-tests.md) — new-test recipe
 
 ## License
 

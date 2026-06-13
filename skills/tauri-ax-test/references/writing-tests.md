@@ -1,6 +1,8 @@
 # Writing a new component test
 
-A repeatable recipe for adding a screen/component to the library.
+A repeatable recipe for adding a screen/component to the library. All commands
+run **inside the vendored AX home** (`<app-repo>/tests/native/` by default) and
+the **agent executes them** — the user only converses.
 
 ## 0. Register the app (once)
 
